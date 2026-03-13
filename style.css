@@ -40,31 +40,36 @@ background:#eeeeee;
 margin-right:auto;
 }
 
+.input-area{
+position:relative;
+}
+
 #userInput{
 width:100%;
 padding:10px;
 border:1px solid #ccc;
 border-radius:5px;
-margin-top:10px;
 }
 
-#suggestions{
-margin-top:10px;
-margin-bottom:10px;
+#suggestionBox{
+position:absolute;
+width:100%;
+background:white;
+border:1px solid #ccc;
+border-top:none;
+max-height:150px;
+overflow-y:auto;
+z-index:10;
 }
 
-.suggest-btn{
-margin:4px;
-padding:6px 10px;
-border:none;
-border-radius:6px;
-background:#e6e6e6;
+.suggestion-item{
+padding:8px;
 cursor:pointer;
-font-size:12px;
+font-size:14px;
 }
 
-.suggest-btn:hover{
-background:#d4d4d4;
+.suggestion-item:hover{
+background:#f1f1f1;
 }
 
 .dark{
@@ -82,6 +87,7 @@ border:1px solid #444;
 
 .dark .bot{
 background:#444;
+color:white;
 }
 
 .dark .user{
@@ -89,7 +95,11 @@ background:#2d6cdf;
 color:white;
 }
 
-.dark .suggest-btn{
-background:#555;
-color:white;
+.dark #suggestionBox{
+background:#333;
+border-color:#555;
+}
+
+.dark .suggestion-item:hover{
+background:#444;
 }
