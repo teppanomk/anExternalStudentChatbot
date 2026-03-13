@@ -1,0 +1,95 @@
+body{
+font-family:Arial, sans-serif;
+background:#f2f2f2;
+display:flex;
+justify-content:center;
+margin-top:40px;
+}
+
+.chat-container{
+width:420px;
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 0 10px rgba(0,0,0,0.1);
+}
+
+#chat{
+height:420px;
+overflow-y:auto;
+border:1px solid #ddd;
+padding:10px;
+margin-bottom:10px;
+}
+
+.message{
+margin:8px 0;
+padding:10px;
+border-radius:8px;
+max-width:80%;
+}
+
+.user{
+background:#d9ecff;
+margin-left:auto;
+text-align:right;
+}
+
+.bot{
+background:#eeeeee;
+margin-right:auto;
+}
+
+#userInput{
+width:100%;
+padding:10px;
+border:1px solid #ccc;
+border-radius:5px;
+margin-top:10px;
+}
+
+#suggestions{
+margin-top:10px;
+margin-bottom:10px;
+}
+
+.suggest-btn{
+margin:4px;
+padding:6px 10px;
+border:none;
+border-radius:6px;
+background:#e6e6e6;
+cursor:pointer;
+font-size:12px;
+}
+
+.suggest-btn:hover{
+background:#d4d4d4;
+}
+
+.dark{
+background:#1e1e1e;
+color:white;
+}
+
+.dark .chat-container{
+background:#2b2b2b;
+}
+
+.dark #chat{
+border:1px solid #444;
+}
+
+.dark .bot{
+background:#444;
+}
+
+.dark .user{
+background:#2d6cdf;
+color:white;
+}
+
+.dark .suggest-btn{
+background:#555;
+color:white;
+}
