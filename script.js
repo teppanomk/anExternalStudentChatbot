@@ -1,8 +1,8 @@
-const sheetURL = "YOUR_KNOWLEDGE_BASE_CSV";
+const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv";
 
-const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
+const GEMINI_API_KEY = "AIzaSyBG1Kdmld1m-GLcKvpJyzBpn5aG6XBL16U";
 
-const LOG_API = "YOUR_LOG_SCRIPT_API";
+const LOG_API = "https://script.google.com/macros/s/AKfycbwxECj02E7GSgfonGpIwSW47Yr1xbKQs43Io1kjDz-gR_M8Qb0xkNJEgcVxt1ZWN4ykrQ/exec";
 
 let knowledgeBase = [];
 
