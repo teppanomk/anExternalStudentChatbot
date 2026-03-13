@@ -1,12 +1,10 @@
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv";
 
-const GEMINI_API_KEY = "AIzaSyCSlfy9UVQIci-CR40m1RzVUj8-DGmXpLg";
+const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
 
 const LOG_API = "https://script.google.com/macros/s/AKfycbze3yVdySjDVy2MOi9SuZgzAOGe09VMx5d8RruXMemn7_IdG8B7LLDLOPDa1ApNvDmvvQ/exec";
 
 let knowledgeBase = [];
-
-let suggestions = [];
 
 const blockedWords = [
 "sex",
@@ -19,6 +17,7 @@ const blockedWords = [
 async function loadSheetData(){
 
 const response = await fetch(sheetURL);
+
 const csv = await response.text();
 
 const parsed = Papa.parse(csv,{
@@ -28,41 +27,9 @@ skipEmptyLines:true
 
 knowledgeBase = parsed.data;
 
-generateSuggestions();
-
 }
 
 loadSheetData();
-
-
-
-function generateSuggestions(){
-
-const container = document.getElementById("suggestions");
-container.innerHTML = "";
-
-suggestions = knowledgeBase
-.slice(0,5)
-.map(row => row["User Question"]);
-
-suggestions.forEach(q => {
-
-const btn = document.createElement("button");
-
-btn.className = "suggest-btn";
-
-btn.innerText = q;
-
-btn.onclick = () => {
-document.getElementById("userInput").value = q;
-sendMessage();
-};
-
-container.appendChild(btn);
-
-});
-
-}
 
 
 
@@ -84,23 +51,11 @@ chat.scrollTop = chat.scrollHeight;
 
 
 
-function searchSheet(question){
+function normalize(text){
 
-question = question.toLowerCase();
-
-for(const row of knowledgeBase){
-
-if(!row["User Question"]) continue;
-
-const q = row["User Question"].toLowerCase();
-
-if(question.includes(q) || q.includes(question)){
-return row["Bot Answer"];
-}
-
-}
-
-return null;
+return text
+.toLowerCase()
+.replace(/[^\w\s]/gi,"");
 
 }
 
@@ -108,19 +63,39 @@ return null;
 
 function isValidQuestion(question){
 
-if(question.length < 3){
-return false;
-}
-
-const q = question.toLowerCase();
+const q = normalize(question);
 
 for(const word of blockedWords){
+
 if(q.includes(word)){
 return false;
 }
+
 }
 
 return true;
+
+}
+
+
+
+function searchSheet(question){
+
+const q = normalize(question);
+
+for(const row of knowledgeBase){
+
+if(!row["User Question"]) continue;
+
+const sheetQ = normalize(row["User Question"]);
+
+if(q.includes(sheetQ) || sheetQ.includes(q)){
+return row["Bot Answer"];
+}
+
+}
+
+return null;
 
 }
 
@@ -140,7 +115,8 @@ contents:[
 {
 parts:[
 {
-text:`You are a helpful university assistant chatbot. Answer clearly.
+text:`You are a helpful university assistant chatbot.
+Answer clearly and briefly.
 
 Question: ${question}`
 }
@@ -177,7 +153,9 @@ answer:answer
 });
 
 }catch(error){
+
 console.log("Logging error:",error);
+
 }
 
 }
@@ -192,15 +170,23 @@ const message = input.value.trim();
 
 if(!message) return;
 
+
 if(!isValidQuestion(message)){
-addMessage("⚠️ Please ask an appropriate question.","bot");
+
+addMessage("⚠️ This question is not allowed.","bot");
+
+input.value="";
 return;
+
 }
+
 
 addMessage(message,"user");
 
 input.value="";
-input.focus();
+
+document.getElementById("suggestionBox").innerHTML="";
+
 
 let sheetAnswer = searchSheet(message);
 
@@ -213,6 +199,7 @@ logQuestion(message,"Yes",sheetAnswer);
 return;
 
 }
+
 
 addMessage("Thinking...","bot");
 
@@ -240,7 +227,47 @@ sendMessage();
 
 
 
-document.getElementById("darkToggle").addEventListener("click", () => {
+/* AUTOCOMPLETE SUGGESTIONS */
+
+document.getElementById("userInput").addEventListener("input",function(){
+
+const keyword = this.value.toLowerCase();
+
+const box = document.getElementById("suggestionBox");
+
+box.innerHTML="";
+
+if(keyword.length < 2) return;
+
+const matches = knowledgeBase
+.filter(row => row["User Question"] && row["User Question"].toLowerCase().includes(keyword))
+.slice(0,5);
+
+matches.forEach(row => {
+
+const div = document.createElement("div");
+
+div.className="suggestion-item";
+
+div.innerText=row["User Question"];
+
+div.onclick=()=>{
+
+document.getElementById("userInput").value=row["User Question"];
+
+box.innerHTML="";
+
+};
+
+box.appendChild(div);
+
+});
+
+});
+
+
+
+document.getElementById("darkToggle").addEventListener("click",()=>{
 
 document.body.classList.toggle("dark");
 
