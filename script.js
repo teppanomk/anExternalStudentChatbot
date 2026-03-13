@@ -1,11 +1,17 @@
-const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv";
-const GEMINI_API_KEY = "AIzaSyBG1Kdmld1m-GLcKvpJyzBpn5aG6XBL16U";
+const sheetURL = "YOUR_KNOWLEDGE_BASE_CSV";
+
+const GEMINI_API_KEY = "YOUR_GEMINI_API_KEY";
+
+const LOG_API = "YOUR_LOG_SCRIPT_API";
 
 let knowledgeBase = [];
+
 let suggestions = [];
 let selectedIndex = -1;
 
-const blockedWords = ["sex","porn","kill","hate","violence"];
+const blockedWords = [
+"sex","porn","kill","hate","violence"
+];
 
 
 
@@ -55,11 +61,13 @@ return text.toLowerCase().replace(/[^\w\s]/gi,"");
 
 function isValidQuestion(question){
 
-const q=normalize(question);
+const q = normalize(question);
 
 for(const word of blockedWords){
 
-if(q.includes(word)) return false;
+if(q.includes(word)){
+return false;
+}
 
 }
 
@@ -69,90 +77,23 @@ return true;
 
 
 
-async function semanticSearch(question){
+function keywordSearch(question){
 
-const response = await fetch(
-`https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`,
-{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-content:{ parts:[{ text:question }] }
-})
-});
-
-const data = await response.json();
-
-const userEmbedding = data.embedding.values;
-
-let bestScore = 0;
-let bestAnswer = null;
+const q = normalize(question);
 
 for(const row of knowledgeBase){
 
 if(!row["User Question"]) continue;
 
-const q=row["User Question"];
+const sheetQ = normalize(row["User Question"]);
 
-const emb = await getEmbedding(q);
-
-const score = cosineSimilarity(userEmbedding,emb);
-
-if(score > bestScore){
-
-bestScore = score;
-bestAnswer = row["Bot Answer"];
-
+if(q.includes(sheetQ) || sheetQ.includes(q)){
+return row["Bot Answer"];
 }
 
 }
-
-if(bestScore > 0.75) return bestAnswer;
 
 return null;
-
-}
-
-
-
-async function getEmbedding(text){
-
-const response = await fetch(
-`https://generativelanguage.googleapis.com/v1beta/models/embedding-001:embedContent?key=${GEMINI_API_KEY}`,
-{
-method:"POST",
-headers:{ "Content-Type":"application/json" },
-body:JSON.stringify({
-content:{ parts:[{ text:text }] }
-})
-});
-
-const data = await response.json();
-
-return data.embedding.values;
-
-}
-
-
-
-function cosineSimilarity(a,b){
-
-let dot=0;
-let magA=0;
-let magB=0;
-
-for(let i=0;i<a.length;i++){
-
-dot+=a[i]*b[i];
-magA+=a[i]*a[i];
-magB+=b[i]*b[i];
-
-}
-
-magA=Math.sqrt(magA);
-magB=Math.sqrt(magB);
-
-return dot/(magA*magB);
 
 }
 
@@ -164,13 +105,17 @@ const response = await fetch(
 `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
 {
 method:"POST",
-headers:{ "Content-Type":"application/json" },
+headers:{
+"Content-Type":"application/json"
+},
 body:JSON.stringify({
 contents:[
 {
 parts:[
 {
 text:`You are a helpful university assistant chatbot.
+
+Answer clearly and briefly.
 
 Question: ${question}`
 }
@@ -189,9 +134,39 @@ return data?.candidates?.[0]?.content?.parts?.[0]?.text
 
 
 
+async function logQuestion(question,found,answer){
+
+if(!LOG_API) return;
+
+try{
+
+await fetch(LOG_API,{
+method:"POST",
+mode:"no-cors",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+question:question,
+found:found,
+answer:answer
+})
+});
+
+}catch(error){
+
+console.log("Log error:",error);
+
+}
+
+}
+
+
+
 async function sendMessage(){
 
 const input=document.getElementById("userInput");
+
 const message=input.value.trim();
 
 if(!message) return;
@@ -208,29 +183,37 @@ return;
 addMessage(message,"user");
 
 input.value="";
+
 document.getElementById("suggestionBox").innerHTML="";
+
 
 addMessage("Thinking...","bot");
 
-let sheetAnswer = await semanticSearch(message);
+
+let sheetAnswer = keywordSearch(message);
 
 if(sheetAnswer){
 
-document.querySelector("#chat .bot:last-child").innerText=sheetAnswer;
+document.querySelector("#chat .bot:last-child").innerText = sheetAnswer;
+
+logQuestion(message,"Yes",sheetAnswer);
 
 return;
 
 }
 
+
 let aiAnswer = await askGemini(message);
 
-document.querySelector("#chat .bot:last-child").innerText=aiAnswer;
+document.querySelector("#chat .bot:last-child").innerText = aiAnswer;
+
+logQuestion(message,"No",aiAnswer);
 
 }
 
 
 
-const input = document.getElementById("userInput");
+const input=document.getElementById("userInput");
 
 input.addEventListener("input",function(){
 
@@ -239,6 +222,7 @@ const keyword=this.value.toLowerCase();
 const box=document.getElementById("suggestionBox");
 
 box.innerHTML="";
+
 selectedIndex=-1;
 
 if(keyword.length<2) return;
@@ -252,11 +236,13 @@ suggestions.forEach((row,index)=>{
 const div=document.createElement("div");
 
 div.className="suggestion-item";
+
 div.innerText=row["User Question"];
 
 div.onclick=()=>{
 
 input.value=row["User Question"];
+
 box.innerHTML="";
 
 };
@@ -273,11 +259,10 @@ input.addEventListener("keydown",function(e){
 
 const items=document.querySelectorAll(".suggestion-item");
 
-if(!items.length) return;
-
 if(e.key==="ArrowDown"){
 
 selectedIndex++;
+
 if(selectedIndex>=items.length) selectedIndex=0;
 
 }
@@ -285,6 +270,7 @@ if(selectedIndex>=items.length) selectedIndex=0;
 if(e.key==="ArrowUp"){
 
 selectedIndex--;
+
 if(selectedIndex<0) selectedIndex=items.length-1;
 
 }
@@ -309,7 +295,7 @@ sendMessage();
 
 items.forEach(i=>i.classList.remove("active"));
 
-if(selectedIndex>-1){
+if(selectedIndex>-1 && items[selectedIndex]){
 
 items[selectedIndex].classList.add("active");
 
@@ -324,3 +310,11 @@ document.getElementById("darkToggle").addEventListener("click",()=>{
 document.body.classList.toggle("dark");
 
 });
+
+
+
+window.onload=()=>{
+
+document.getElementById("userInput").focus();
+
+};
