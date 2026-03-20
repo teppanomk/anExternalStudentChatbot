@@ -115,12 +115,23 @@ function searchSheet(question) {
 
 // ================= BANNED =================
 function containsBannedWord(text) {
-  const lowerText = text.toLowerCase();
+  const cleanText = normalizeThai(text);
 
   return bannedWords.some(word => {
-    if (!word) return false;
-    return lowerText.includes(word);
+    const cleanWord = normalizeThai(word);
+    if (!cleanWord) return false;
+
+    return cleanText.includes(cleanWord);
   });
+}
+
+// 🔥 Normalize Thai text (VERY IMPORTANT)
+function normalizeThai(str) {
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "")        // remove ALL spaces
+    .replace(/[\u200B-\u200D\uFEFF]/g, ""); // remove zero-width chars
 }
 
 // ================= LOG =================
