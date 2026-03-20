@@ -56,8 +56,9 @@ async function initData() {
   isLoaded = true;
   console.log("✅ All data loaded");
 }
+
 initData();
-setInterval(initData, 30000); // Auto-refresh every 30 sec
+setInterval(initData, 30000);
 
 // ================= UI =================
 function addMessage(text, sender) {
@@ -135,11 +136,7 @@ async function sendMessage() {
   const input = document.getElementById("userInput");
   const rawMessage = input.value.trim();
   if (!rawMessage) return;
-
-  if (!isLoaded) {
-    addMessage("⏳ Loading data, please wait...", "bot");
-    return;
-  }
+  if (!isLoaded) { addMessage("⏳ Loading data, please wait...", "bot"); return; }
 
   if (containsBannedWord(rawMessage)) {
     addMessage("⚠️ Message contains banned words.", "bot");
@@ -163,41 +160,39 @@ async function sendMessage() {
   setTimeout(() => { typing.innerText = answer; }, 400);
 }
 
-// ================= SUGGESTION DROPDOWN =================
+// ================= SUGGESTIONS =================
 const inputBox = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
 
 const suggestionBox = document.createElement("div");
+suggestionBox.style.background = "#fff";
+suggestionBox.style.border = "1px solid #ccc";
 suggestionBox.style.position = "absolute";
 suggestionBox.style.width = "400px";
 suggestionBox.style.maxHeight = "150px";
 suggestionBox.style.overflowY = "auto";
 suggestionBox.style.display = "none";
 suggestionBox.style.zIndex = "999";
-suggestionBox.style.border = "1px solid #ccc";
+suggestionBox.style.color = "#000";
 document.body.appendChild(suggestionBox);
 
 function updateSuggestionColors() {
-  suggestionBox.querySelectorAll("div").forEach(div => {
-    div.style.color = "#000000"; // black text always
-    div.onmouseover = () => {
-      div.style.background = document.body.classList.contains("dark-mode") ? "#ffb3d1" : "#ffe6f0";
-    };
-    div.onmouseout = () => {
-      div.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
-    };
-  });
-  suggestionBox.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
+  if (document.body.classList.contains("dark-mode")) {
+    suggestionBox.style.background = "#ffe6f0";
+    suggestionBox.style.color = "#000";
+  } else {
+    suggestionBox.style.background = "#fff";
+    suggestionBox.style.color = "#000";
+  }
 }
 
+// Suggestions logic
 inputBox.addEventListener("input", () => {
   const value = inputBox.value.toLowerCase().trim();
   suggestionBox.innerHTML = "";
+  updateSuggestionColors();
 
-  if (!value || knowledgeBase.length === 0) {
-    suggestionBox.style.display = "none";
-    return;
-  }
+  if (!value || knowledgeBase.length === 0) { suggestionBox.style.display = "none"; return; }
 
   const keywords = value.split(/\s+/);
   let scored = knowledgeBase.map(row => {
@@ -207,11 +202,8 @@ inputBox.addEventListener("input", () => {
     return { text: row["User Question"], score };
   });
 
-  scored = scored.filter(item => item.score > 0)
-                 .sort((a,b) => b.score - a.score)
-                 .slice(0,5);
-
-  if (scored.length === 0) { suggestionBox.style.display = "none"; return; }
+  scored = scored.filter(item => item.score > 0).sort((a,b)=>b.score-a.score).slice(0,5);
+  if (!scored.length) { suggestionBox.style.display = "none"; return; }
 
   scored.forEach(item => {
     const div = document.createElement("div");
@@ -219,20 +211,9 @@ inputBox.addEventListener("input", () => {
     div.style.padding = "8px";
     div.style.cursor = "pointer";
     div.style.borderBottom = "1px solid #eee";
-    div.style.color = "#000000";
-
-    div.onmouseover = () => {
-      div.style.background = document.body.classList.contains("dark-mode") ? "#ffb3d1" : "#ffe6f0";
-    };
-    div.onmouseout = () => {
-      div.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
-    };
-    div.onclick = () => {
-      inputBox.value = item.text;
-      suggestionBox.style.display = "none";
-      inputBox.focus();
-    };
-
+    div.onmouseover = () => { div.style.background = "#ffe6f0"; };
+    div.onmouseout = () => { div.style.background = "#fff"; };
+    div.onclick = () => { inputBox.value = item.text; suggestionBox.style.display = "none"; inputBox.focus(); };
     suggestionBox.appendChild(div);
   });
 
@@ -240,31 +221,19 @@ inputBox.addEventListener("input", () => {
   suggestionBox.style.left = rect.left + "px";
   suggestionBox.style.top = rect.bottom + window.scrollY + "px";
   suggestionBox.style.display = "block";
-
-  updateSuggestionColors();
 });
 
 document.addEventListener("click", (e) => {
-  if (e.target !== inputBox && e.target !== sendBtn) suggestionBox.style.display = "none";
+  if (e.target !== inputBox) suggestionBox.style.display = "none";
 });
 
 // ================= EVENTS =================
 inputBox.addEventListener("keydown", function(event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    suggestionBox.style.display = "none";
-    sendMessage();
-  }
+  if (event.key === "Enter") { event.preventDefault(); sendMessage(); suggestionBox.style.display="none"; }
 });
+sendBtn.addEventListener("click", () => { sendMessage(); suggestionBox.style.display="none"; });
 
-sendBtn.addEventListener("click", () => {
-  suggestionBox.style.display = "none";
-  sendMessage();
-});
-
-// DARK MODE TOGGLE
-const darkToggleBtn = document.getElementById("darkToggle");
-darkToggleBtn.addEventListener("click", () => {
+document.getElementById("darkToggle").addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
   updateSuggestionColors();
 });
