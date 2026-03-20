@@ -115,7 +115,7 @@ body.dark-mode #userInput {
 
 body.dark-mode #sendBtn {
   background: #ff66b3;
-  color: #000;
+  color: #fff;
 }
 
 body.dark-mode h2 {
@@ -125,4 +125,21 @@ body.dark-mode h2 {
 .input-area {
   display: flex;
   gap: 5px;
+}
+.suggestions-box {
+  border: 1px solid #ff99cc;
+  max-height: 120px;
+  overflow-y: auto;
+  margin-bottom: 5px;
+  background: #fff0f6;
+  border-radius: 5px;
+}
+
+.suggestion {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background: #ffccde;
 }
