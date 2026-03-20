@@ -9,23 +9,20 @@ body {
 }
 
 .chat-container {
-  width: 450px;
+  width: 420px;
   background: #fff0f6;
   padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(255, 0, 128, 0.2);
-  transition: background 0.3s, box-shadow 0.3s, color 0.3s;
+  border-radius: 10px;
+  box-shadow: 0 0 10px rgba(255, 0, 128, 0.2);
 }
 
 #chat {
-  height: 400px;
+  height: 420px;
   overflow-y: auto;
   border: 1px solid #ffc0cb;
   padding: 10px;
   margin-bottom: 10px;
   background: #fff0f6;
-  border-radius: 8px;
-  transition: background 0.3s, border 0.3s, color 0.3s;
 }
 
 .message {
@@ -33,8 +30,6 @@ body {
   padding: 10px;
   border-radius: 8px;
   max-width: 80%;
-  word-wrap: break-word;
-  transition: background 0.3s, color 0.3s;
 }
 
 .user {
@@ -51,68 +46,22 @@ body {
 }
 
 #userInput {
-  flex: 1;
+  width: 100%;
   padding: 10px;
   border: 1px solid #ff99cc;
-  border-radius: 8px;
+  border-radius: 5px;
   background: #fff0f6;
   color: #800040;
-  transition: background 0.3s, color 0.3s, border 0.3s;
-}
-
-.input-container {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.send-button {
-  background: #ff3399;
-  border: none;
-  color: white;
-  padding: 10px 16px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background 0.3s, transform 0.2s;
-}
-
-.send-button:hover {
-  background: #ff66b3;
-  transform: translateY(-2px);
 }
 
 #darkToggle {
   background: #ff99cc;
   border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
+  padding: 5px 10px;
+  border-radius: 5px;
   cursor: pointer;
   color: white;
   margin-bottom: 10px;
-  transition: background 0.3s, color 0.3s;
-}
-
-#darkToggle:hover {
-  background: #ff66b3;
-}
-
-.suggestions-box {
-  border: 1px solid #ff99cc;
-  border-radius: 6px;
-  padding: 5px;
-  margin-bottom: 8px;
-  background: #fff0f6;
-}
-
-.suggestion {
-  padding: 5px;
-  cursor: pointer;
-  color: black; /* suggestion text color */
-}
-
-.suggestion:hover {
-  background: #ffccde;
 }
 
 /* DARK MODE */
@@ -124,13 +73,11 @@ body.dark-mode {
 body.dark-mode .chat-container {
   background: #1a001a;
   color: #ffffff;
-  box-shadow: 0 4px 15px rgba(255, 182, 193, 0.5);
 }
 
 body.dark-mode #chat {
   background: #1a001a;
   border: 1px solid #ff66b3;
-  color: #ffffff;
 }
 
 body.dark-mode .user {
@@ -146,7 +93,6 @@ body.dark-mode .bot {
 body.dark-mode #userInput {
   background: #1a001a;
   color: #ffffff;
-  border: 1px solid #ff66b3;
 }
 
 body.dark-mode #darkToggle {
