@@ -112,8 +112,22 @@ function searchSheet(question) {
 
 // ================= BANNED =================
 function containsBannedWord(text) {
-  const words = text.toLowerCase().split(/\W+/);
-  return bannedWords.some(b => words.includes(b));
+  const lowerText = text.toLowerCase();
+
+  return bannedWords.some(word => {
+    if (!word) return false;
+
+    word = word.toLowerCase().trim();
+
+    // For short words (like Thai), use includes
+    if (word.length <= 4) {
+      return lowerText.includes(word);
+    }
+
+    // For longer words, match whole words (English safe)
+    const regex = new RegExp(`\\b${word}\\b`, "i");
+    return regex.test(lowerText);
+  });
 }
 
 // ================= LOG =================
