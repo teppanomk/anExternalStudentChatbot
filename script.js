@@ -1,8 +1,6 @@
 // ================= CONFIG =================
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv";
-
 const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
-
 const LOG_API = "https://script.google.com/macros/s/AKfycbze3yVdySjDVy2MOi9SuZgzAOGe09VMx5d8RruXMemn7_IdG8B7LLDLOPDa1ApNvDmvvQ/exec";
 
 // ================= STATE =================
@@ -10,20 +8,22 @@ let knowledgeBase = [];
 let bannedWords = [];
 let isLoaded = false;
 
+// ================= NORMALIZATION =================
+function normalizeThai(str) {
+  return str
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "")            // remove spaces
+    .replace(/[\u200B-\u200D\uFEFF]/g, ""); // remove zero-width chars
+}
+
 // ================= LOAD DATA =================
 async function loadSheetData() {
   try {
     const response = await fetch(sheetURL);
     const csv = await response.text();
-
-    const parsed = Papa.parse(csv, {
-      header: true,
-      skipEmptyLines: true
-    });
-
+    const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
     knowledgeBase = parsed.data;
-    isLoaded = true;
-
     console.log("✅ Sheet loaded:", knowledgeBase.length);
   } catch (err) {
     console.error("❌ Sheet error:", err);
@@ -34,44 +34,34 @@ async function loadBannedWords() {
   try {
     const response = await fetch(bannedURL);
     const csv = await response.text();
+    const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
 
-    const parsed = Papa.parse(csv, {
-      header: true,
-      skipEmptyLines: true
-    });
+    if (!parsed.data.length) return;
 
-    if (!parsed.data.length) {
-      console.warn("⚠️ No banned words found");
-      return;
-    }
-
-    // ✅ ALWAYS use first column (ignores header issues completely)
     const firstColumn = Object.keys(parsed.data[0])[0];
-
-   bannedWords = parsed.data
-    .map(row => row[firstColumn])
-    .filter(Boolean)
-    .map(word => normalizeThai(word)); // 🔥 use same normalization
+    bannedWords = parsed.data
+      .map(row => row[firstColumn])
+      .filter(Boolean)
+      .map(word => normalizeThai(word));
 
     console.log("🚫 Banned words loaded:", bannedWords);
-    console.log("USER:", normalizeThai(text));
-    console.log("BANNED:", bannedWords);
-
   } catch (err) {
     console.error("❌ Error loading banned words:", err);
   }
 }
 
-// Initial load
-loadSheetData();
-loadBannedWords();
+// ================= INITIAL LOAD =================
+async function initData() {
+  await loadSheetData();
+  await loadBannedWords();
+  isLoaded = true;
+  console.log("✅ All data loaded");
+}
 
-// Auto refresh
-setInterval(() => {
-  loadSheetData();
-  loadBannedWords();
-  console.log("🔄 Refreshed");
-}, 30000);
+initData();
+
+// ================= AUTO REFRESH =================
+setInterval(initData, 30000); // refresh every 30 sec
 
 // ================= UI =================
 function addMessage(text, sender) {
@@ -83,115 +73,6 @@ function addMessage(text, sender) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-// ================= SEARCH =================
-function searchSheet(question) {
-  const input = question.toLowerCase().trim();
-  const inputWords = input.split(/\W+/).filter(Boolean);
-
-  let bestMatch = null;
-  let bestScore = 0;
-
-  for (const row of knowledgeBase) {
-    if (!row["User Question"]) continue;
-
-    const q = row["User Question"].toLowerCase();
-    const qWords = q.split(/\W+/).filter(Boolean);
-
-    let matchCount = 0;
-
-    inputWords.forEach(word => {
-      if (qWords.includes(word)) matchCount++;
-    });
-
-    // 🔥 SCORE = % of matched words
-    const score = matchCount / inputWords.length;
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = row;
-    }
-  }
-
-  // ✅ REQUIRE at least 60% match
-  if (bestScore >= 0.6) {
-    return bestMatch["Bot Answer"];
-  }
-
-  return null;
-}
-
-// ================= BANNED =================
-function containsBannedWord(text) {
-  const cleanText = normalizeThai(text);
-
-  return bannedWords.some(word => {
-    const cleanWord = normalizeThai(word);
-    if (!cleanWord) return false;
-
-    return cleanText.includes(cleanWord);
-  });
-}
-
-// 🔥 Normalize Thai text (VERY IMPORTANT)
-function normalizeThai(str) {
-  return str
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "")        // remove ALL spaces
-    .replace(/[\u200B-\u200D\uFEFF]/g, ""); // remove zero-width chars
-}
-
-// ================= LOG =================
-async function logQuestion(question, found, answer) {
-  try {
-    await fetch(LOG_API, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question, found, answer })
-    });
-  } catch (err) {
-    console.log("BANNED:", bannedWords);
-  }
-}
-
-// ================= CHAT =================
-async function sendMessage() {
-  const input = document.getElementById("userInput");
-  const message = input.value.trim();
-  if (!message) return;
-
-  if (!isLoaded) {
-    addMessage("⏳ Loading data, please wait...", "bot");
-    return;
-  }
-
-  if (containsBannedWord(message)) {
-    addMessage("⚠️ Message contains banned words.", "bot");
-    input.value = "";
-    return;
-  }
-
-  addMessage(message, "user");
-  input.value = "";
-
-  // typing
-  const typing = addTyping();
-
-  let answer = searchSheet(message);
-
-  if (!answer) {
-    answer = "Sorry, I don't have an answer for that yet.";
-    logQuestion(message, "No", answer);
-  } else {
-    logQuestion(message, "Yes", answer);
-  }
-
-  setTimeout(() => {
-    typing.innerText = answer;
-  }, 400);
-}
-
 function addTyping() {
   const chat = document.getElementById("chat");
   const div = document.createElement("div");
@@ -201,7 +82,91 @@ function addTyping() {
   return div;
 }
 
-// ================= SMART KEYWORD SUGGESTIONS =================
+// ================= SEARCH =================
+function searchSheet(question) {
+  const input = normalizeThai(question);
+  const inputWords = input.split(/\W+/).filter(Boolean);
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const row of knowledgeBase) {
+    if (!row["User Question"]) continue;
+
+    const q = normalizeThai(row["User Question"]);
+    const qWords = q.split(/\W+/).filter(Boolean);
+
+    let matchCount = 0;
+    inputWords.forEach(word => { if (qWords.includes(word)) matchCount++; });
+    const score = matchCount / inputWords.length;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = row;
+    }
+  }
+
+  // Require at least 60% keyword match
+  if (bestScore >= 0.6) return bestMatch["Bot Answer"];
+  return null;
+}
+
+// ================= BANNED WORD CHECK =================
+function containsBannedWord(text) {
+  const cleanText = normalizeThai(text);
+  return bannedWords.some(word => cleanText.includes(word));
+}
+
+// ================= LOGGING =================
+async function logQuestion(question, found, answer) {
+  try {
+    await fetch(LOG_API, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, found, answer })
+    });
+  } catch (err) {
+    console.log("Logging error:", err);
+  }
+}
+
+// ================= CHAT =================
+async function sendMessage() {
+  const input = document.getElementById("userInput");
+  const rawMessage = input.value.trim();
+  if (!rawMessage) return;
+
+  if (!isLoaded) {
+    addMessage("⏳ Loading data, please wait...", "bot");
+    return;
+  }
+
+  const message = normalizeThai(rawMessage);
+
+  if (containsBannedWord(message)) {
+    addMessage("⚠️ Message contains banned words.", "bot");
+    input.value = "";
+    return;
+  }
+
+  addMessage(rawMessage, "user");
+  input.value = "";
+
+  const typing = addTyping();
+  let answer = searchSheet(rawMessage);
+
+  if (!answer) {
+    answer = "Sorry, I don't have an answer for that yet.";
+    logQuestion(rawMessage, "No", answer);
+  } else {
+    logQuestion(rawMessage, "Yes", answer);
+  }
+
+  setTimeout(() => { typing.innerText = answer; }, 400);
+}
+
+// ================= KEYWORD SUGGESTIONS =================
 const inputBox = document.getElementById("userInput");
 
 const suggestionBox = document.createElement("div");
@@ -213,7 +178,6 @@ suggestionBox.style.maxHeight = "150px";
 suggestionBox.style.overflowY = "auto";
 suggestionBox.style.display = "none";
 suggestionBox.style.zIndex = "999";
-
 document.body.appendChild(suggestionBox);
 
 inputBox.addEventListener("input", () => {
@@ -226,49 +190,25 @@ inputBox.addEventListener("input", () => {
   }
 
   const keywords = value.split(/\s+/);
-
   let scored = knowledgeBase.map(row => {
     const question = (row["User Question"] || "").toLowerCase();
-
     let score = 0;
-
-    keywords.forEach(word => {
-      if (question.includes(word)) score++;
-    });
-
-    return {
-      text: row["User Question"],
-      score: score
-    };
+    keywords.forEach(word => { if (question.includes(word)) score++; });
+    return { text: row["User Question"], score };
   });
 
-  // Filter only relevant matches
-  scored = scored
-    .filter(item => item.score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5); // top 5
-
-  if (scored.length === 0) {
-    suggestionBox.style.display = "none";
-    return;
-  }
+  scored = scored.filter(item => item.score > 0).sort((a,b)=>b.score-a.score).slice(0,5);
+  if (scored.length === 0) { suggestionBox.style.display = "none"; return; }
 
   scored.forEach(item => {
     const div = document.createElement("div");
     div.innerText = item.text;
-
     div.style.padding = "8px";
     div.style.cursor = "pointer";
     div.style.borderBottom = "1px solid #eee";
 
-    div.onmouseover = () => {
-      div.style.background = "#ffe6f0";
-    };
-
-    div.onmouseout = () => {
-      div.style.background = "#fff";
-    };
-
+    div.onmouseover = () => { div.style.background = "#ffe6f0"; };
+    div.onmouseout = () => { div.style.background = "#fff"; };
     div.onclick = () => {
       inputBox.value = item.text;
       suggestionBox.style.display = "none";
@@ -284,11 +224,8 @@ inputBox.addEventListener("input", () => {
   suggestionBox.style.display = "block";
 });
 
-// Hide suggestions when clicking outside
 document.addEventListener("click", (e) => {
-  if (e.target !== inputBox) {
-    suggestionBox.style.display = "none";
-  }
+  if (e.target !== inputBox) suggestionBox.style.display = "none";
 });
 
 // ================= EVENTS =================
