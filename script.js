@@ -168,6 +168,22 @@ async function sendMessage() {
 
 // ================= KEYWORD SUGGESTIONS =================
 const inputBox = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+
+// Press Enter to send
+inputBox.addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    suggestionBox.style.display = "none";
+    sendMessage();
+  }
+});
+
+// Click send button
+sendBtn.addEventListener("click", () => {
+  suggestionBox.style.display = "none";
+  sendMessage();
+});
 
 const suggestionBox = document.createElement("div");
 suggestionBox.style.background = "#fff";
