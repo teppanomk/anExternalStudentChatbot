@@ -59,8 +59,6 @@ async function initData() {
 }
 
 initData();
-
-// ================= AUTO REFRESH =================
 setInterval(initData, 30000); // refresh every 30 sec
 
 // ================= UI =================
@@ -86,14 +84,14 @@ function addTyping() {
 function searchSheet(question) {
   const normalizedInput = normalizeThai(question);
 
-  // 1️⃣ Exact match first
+  // Exact match first
   for (const row of knowledgeBase) {
     if (!row["User Question"]) continue;
     const q = normalizeThai(row["User Question"]);
     if (q === normalizedInput) return row["Bot Answer"];
   }
 
-  // 2️⃣ Keyword match
+  // Keyword match
   const inputWords = normalizedInput.split(/\W+/).filter(Boolean);
   let bestMatch = null;
   let bestScore = 0;
@@ -145,9 +143,7 @@ async function sendMessage() {
     return;
   }
 
-  const message = normalizeThai(rawMessage);
-
-  if (containsBannedWord(message)) {
+  if (containsBannedWord(rawMessage)) {
     addMessage("⚠️ Message contains banned words.", "bot");
     input.value = "";
     return;
@@ -171,34 +167,31 @@ async function sendMessage() {
 
 // ================= KEYWORD SUGGESTIONS =================
 const inputBox = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
 
-// Press Enter to send
-inputBox.addEventListener("keydown", function(event) {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    suggestionBox.style.display = "none";
-    sendMessage();
-  }
-});
-
-// Click send button
-sendBtn.addEventListener("click", () => {
-  suggestionBox.style.display = "none";
-  sendMessage();
-});
-
+// Create suggestion box
 const suggestionBox = document.createElement("div");
-suggestionBox.style.background = "#fff";
-suggestionBox.style.border = "1px solid #ccc";
 suggestionBox.style.position = "absolute";
 suggestionBox.style.width = "400px";
 suggestionBox.style.maxHeight = "150px";
 suggestionBox.style.overflowY = "auto";
 suggestionBox.style.display = "none";
 suggestionBox.style.zIndex = "999";
+suggestionBox.style.border = "1px solid #ccc";
+suggestionBox.style.padding = "0";
 document.body.appendChild(suggestionBox);
 
+// Update suggestion colors based on dark mode
+function updateSuggestionColors() {
+  if (document.body.classList.contains("dark-mode")) {
+    suggestionBox.style.background = "#ffe6f0"; // light background
+    suggestionBox.style.color = "#000";
+  } else {
+    suggestionBox.style.background = "#fff";
+    suggestionBox.style.color = "#000";
+  }
+}
+
+// Generate suggestions
 inputBox.addEventListener("input", () => {
   const value = inputBox.value.toLowerCase().trim();
   suggestionBox.innerHTML = "";
@@ -227,7 +220,7 @@ inputBox.addEventListener("input", () => {
     div.style.borderBottom = "1px solid #eee";
 
     div.onmouseover = () => { div.style.background = "#ffe6f0"; };
-    div.onmouseout = () => { div.style.background = "#fff"; };
+    div.onmouseout = () => { div.style.background = suggestionBox.style.background; };
     div.onclick = () => {
       inputBox.value = item.text;
       suggestionBox.style.display = "none";
@@ -241,21 +234,45 @@ inputBox.addEventListener("input", () => {
   suggestionBox.style.left = rect.left + "px";
   suggestionBox.style.top = rect.bottom + window.scrollY + "px";
   suggestionBox.style.display = "block";
+
+  updateSuggestionColors();
 });
 
 document.addEventListener("click", (e) => {
   if (e.target !== inputBox) suggestionBox.style.display = "none";
 });
 
-// ================= EVENTS =================
-inputBox.addEventListener("keypress", function(event) {
+// ================= DARK MODE =================
+document.getElementById("darkToggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  updateSuggestionColors();
+});
+
+// ================= SEND BUTTON =================
+// Add a modern send button
+const sendBtn = document.createElement("button");
+sendBtn.id = "sendBtn";
+sendBtn.innerText = "Send";
+sendBtn.style.marginLeft = "10px";
+sendBtn.style.padding = "8px 16px";
+sendBtn.style.border = "none";
+sendBtn.style.borderRadius = "5px";
+sendBtn.style.cursor = "pointer";
+sendBtn.style.background = "#ff99cc";
+sendBtn.style.color = "#fff";
+
+document.querySelector(".chat-container").appendChild(sendBtn);
+
+sendBtn.addEventListener("click", () => {
+  suggestionBox.style.display = "none";
+  sendMessage();
+});
+
+// Enter key also sends
+inputBox.addEventListener("keydown", function(event) {
   if (event.key === "Enter") {
     event.preventDefault();
     suggestionBox.style.display = "none";
     sendMessage();
   }
-});
-
-document.getElementById("darkToggle").addEventListener("click", () => {
-  document.body.classList.toggle("dark-mode");
 });
