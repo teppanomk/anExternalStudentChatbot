@@ -1,320 +1,174 @@
-const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv";
+// ================= CONFIG =================
+const API_URL = "https://script.google.com/macros/s/AKfycbzx32ukTgnxurO3rWLcLuMYcTE-ueRCYQmr_IXfievPalf3PGz0Ocu62eNBW58RimrkFQ/exec";
+const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
+const LOG_API = "https://script.google.com/macros/s/AKfycbze3yVdySjDVy2MOi9SuZgzAOGe09VMx5d8RruXMemn7_IdG8B7LLDLOPDa1ApNvDmvvQ/exec";
 
-const GEMINI_API_KEY = "AIzaSyBG1Kdmld1m-GLcKvpJyzBpn5aG6XBL16U";
-
-const LOG_API = "https://script.google.com/macros/s/AKfycbwxECj02E7GSgfonGpIwSW47Yr1xbKQs43Io1kjDz-gR_M8Qb0xkNJEgcVxt1ZWN4ykrQ/exec";
-
+// ================= STATE =================
 let knowledgeBase = [];
+let bannedWords = [];
+let isDataLoaded = false;
+let isProcessing = false;
 
-let suggestions = [];
-let selectedIndex = -1;
+// ================= LOAD DATA =================
+async function loadSheetData() {
+  const response = await fetch(API_URL + "?t=" + Date.now());
+  const data = await response.json();
 
-const blockedWords = [
-"sex","porn","kill","hate","violence"
-];
+  knowledgeBase = data.map(row => ({
+    question: row.question.toLowerCase(),
+    answer: row.answer
+  }));
+}
 
+async function loadBannedWords() {
+  const response = await fetch(bannedURL + "&t=" + Date.now());
+  const csv = await response.text();
 
+  const rows = csv.split("\n").slice(1);
+  bannedWords = rows.map(r => r.trim().toLowerCase()).filter(Boolean);
+}
 
-async function loadSheetData(){
+async function refreshData() {
+  await loadSheetData();
+  await loadBannedWords();
+  isDataLoaded = true;
+  console.log("🔄 Data refreshed");
+}
 
-const response = await fetch(sheetURL);
-const csv = await response.text();
+// Initial load
+refreshData();
 
-const parsed = Papa.parse(csv,{
-header:true,
-skipEmptyLines:true
+// Auto refresh every 30 sec
+setInterval(refreshData, 30000);
+
+// ================= CHAT UI =================
+function addMessage(text, sender) {
+  const chat = document.getElementById("chat");
+  const div = document.createElement("div");
+  div.className = "message " + sender;
+  div.innerText = text;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function showTyping() {
+  const chat = document.getElementById("chat");
+  const div = document.createElement("div");
+  div.className = "message bot";
+  div.id = "typing";
+  div.innerText = "Typing...";
+  chat.appendChild(div);
+}
+
+function removeTyping() {
+  const typing = document.getElementById("typing");
+  if (typing) typing.remove();
+}
+
+// ================= SEARCH =================
+function searchSheet(question) {
+  question = question.toLowerCase();
+
+  let bestMatch = null;
+  let bestScore = 0;
+
+  for (const row of knowledgeBase) {
+    const q = row.question;
+
+    const qWords = q.split(" ");
+    const inputWords = question.split(" ");
+
+    let match = 0;
+
+    inputWords.forEach(word => {
+      if (qWords.includes(word)) match++;
+    });
+
+    const score = match / qWords.length;
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = row.answer;
+    }
+  }
+
+  return bestScore > 0.3 ? bestMatch : null;
+}
+
+// ================= FILTER =================
+function containsBannedWord(text) {
+  const lower = text.toLowerCase();
+  return bannedWords.some(word => lower.includes(word));
+}
+
+// ================= LOG =================
+async function logQuestion(question, found, answer) {
+  try {
+    await fetch(LOG_API, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, found, answer })
+    });
+  } catch (e) {
+    console.log("Log error:", e);
+  }
+}
+
+// ================= MAIN =================
+async function sendMessage() {
+  if (isProcessing) return;
+  isProcessing = true;
+
+  const input = document.getElementById("userInput");
+  const message = input.value.trim();
+
+  if (!message) return;
+
+  if (!isDataLoaded) {
+    addMessage("⏳ Loading data, please wait...", "bot");
+    isProcessing = false;
+    return;
+  }
+
+  if (containsBannedWord(message)) {
+    addMessage("⚠️ Message contains banned words.", "bot");
+    input.value = "";
+    isProcessing = false;
+    return;
+  }
+
+  addMessage(message, "user");
+  input.value = "";
+
+  showTyping();
+
+  setTimeout(() => {
+    removeTyping();
+
+    const answer = searchSheet(message);
+
+    if (answer) {
+      addMessage(answer, "bot");
+      logQuestion(message, "Yes", answer);
+    } else {
+      const fallback = "Sorry, I don't have an answer yet.";
+      addMessage(fallback, "bot");
+      logQuestion(message, "No", fallback);
+    }
+
+    isProcessing = false;
+  }, 500);
+}
+
+// ================= EVENTS =================
+document.getElementById("userInput").addEventListener("keypress", function(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendMessage();
+  }
 });
 
-knowledgeBase = parsed.data;
-
-}
-
-loadSheetData();
-
-
-
-function addMessage(text,sender){
-
-const chat = document.getElementById("chat");
-
-const div = document.createElement("div");
-
-div.className="message "+sender;
-
-div.innerText=text;
-
-chat.appendChild(div);
-
-chat.scrollTop=chat.scrollHeight;
-
-}
-
-
-
-function normalize(text){
-
-return text.toLowerCase().replace(/[^\w\s]/gi,"");
-
-}
-
-
-
-function isValidQuestion(question){
-
-const q = normalize(question);
-
-for(const word of blockedWords){
-
-if(q.includes(word)){
-return false;
-}
-
-}
-
-return true;
-
-}
-
-
-
-function keywordSearch(question){
-
-const q = normalize(question);
-
-for(const row of knowledgeBase){
-
-if(!row["User Question"]) continue;
-
-const sheetQ = normalize(row["User Question"]);
-
-if(q.includes(sheetQ) || sheetQ.includes(q)){
-return row["Bot Answer"];
-}
-
-}
-
-return null;
-
-}
-
-
-
-async function askGemini(question){
-
-const response = await fetch(
-`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-contents:[
-{
-parts:[
-{
-text:`You are a helpful university assistant chatbot.
-
-Answer clearly and briefly.
-
-Question: ${question}`
-}
-]
-}
-]
-})
+document.getElementById("darkToggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
 });
-
-const data = await response.json();
-
-return data?.candidates?.[0]?.content?.parts?.[0]?.text
-|| "Sorry, I couldn't find an answer.";
-
-}
-
-
-
-async function logQuestion(question,found,answer){
-
-if(!LOG_API) return;
-
-try{
-
-await fetch(LOG_API,{
-method:"POST",
-mode:"no-cors",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-question:question,
-found:found,
-answer:answer
-})
-});
-
-}catch(error){
-
-console.log("Log error:",error);
-
-}
-
-}
-
-
-
-async function sendMessage(){
-
-const input=document.getElementById("userInput");
-
-const message=input.value.trim();
-
-if(!message) return;
-
-if(!isValidQuestion(message)){
-
-addMessage("⚠️ This question is not allowed.","bot");
-
-input.value="";
-return;
-
-}
-
-addMessage(message,"user");
-
-input.value="";
-
-document.getElementById("suggestionBox").innerHTML="";
-
-
-addMessage("Thinking...","bot");
-
-
-let sheetAnswer = keywordSearch(message);
-
-if(sheetAnswer){
-
-document.querySelector("#chat .bot:last-child").innerText = sheetAnswer;
-
-logQuestion(message,"Yes",sheetAnswer);
-
-return;
-
-}
-
-
-let aiAnswer = await askGemini(message);
-
-document.querySelector("#chat .bot:last-child").innerText = aiAnswer;
-
-logQuestion(message,"No",aiAnswer);
-
-}
-
-
-
-const input=document.getElementById("userInput");
-
-input.addEventListener("input",function(){
-
-const keyword=this.value.toLowerCase();
-
-const box=document.getElementById("suggestionBox");
-
-box.innerHTML="";
-
-selectedIndex=-1;
-
-if(keyword.length<2) return;
-
-suggestions = knowledgeBase
-.filter(row=>row["User Question"] && row["User Question"].toLowerCase().includes(keyword))
-.slice(0,5);
-
-suggestions.forEach((row,index)=>{
-
-const div=document.createElement("div");
-
-div.className="suggestion-item";
-
-div.innerText=row["User Question"];
-
-div.onclick=()=>{
-
-input.value=row["User Question"];
-
-box.innerHTML="";
-
-};
-
-box.appendChild(div);
-
-});
-
-});
-
-
-
-input.addEventListener("keydown",function(e){
-
-const items=document.querySelectorAll(".suggestion-item");
-
-if(e.key==="ArrowDown"){
-
-selectedIndex++;
-
-if(selectedIndex>=items.length) selectedIndex=0;
-
-}
-
-if(e.key==="ArrowUp"){
-
-selectedIndex--;
-
-if(selectedIndex<0) selectedIndex=items.length-1;
-
-}
-
-if(e.key==="Enter"){
-
-if(selectedIndex>-1){
-
-e.preventDefault();
-
-input.value=items[selectedIndex].innerText;
-
-document.getElementById("suggestionBox").innerHTML="";
-
-return;
-
-}
-
-sendMessage();
-
-}
-
-items.forEach(i=>i.classList.remove("active"));
-
-if(selectedIndex>-1 && items[selectedIndex]){
-
-items[selectedIndex].classList.add("active");
-
-}
-
-});
-
-
-
-document.getElementById("darkToggle").addEventListener("click",()=>{
-
-document.body.classList.toggle("dark");
-
-});
-
-
-
-window.onload=()=>{
-
-document.getElementById("userInput").focus();
-
-};
