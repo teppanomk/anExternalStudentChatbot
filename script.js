@@ -1,35 +1,82 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwF-er3hjnbMETDdNqudt8jkaaCQ5MSk4T01DqKGNPEXejn62go9mGMPMoYrFPHk0hpqA/exec";
+// ================= CONFIG =================
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv";
+
 const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
 
+const LOG_API = "https://script.google.com/macros/s/AKfycbze3yVdySjDVy2MOi9SuZgzAOGe09VMx5d8RruXMemn7_IdG8B7LLDLOPDa1ApNvDmvvQ/exec";
+
+// ================= STATE =================
 let knowledgeBase = [];
 let bannedWords = [];
-let isDataLoaded = false;
+let lastLoaded = 0;
 
-async function loadSheetData() {
-  const res = await fetch(sheetURL + "?t=" + Date.now());
-  const csvText = await res.text();
-  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-  knowledgeBase = parsed.data;
-  isDataLoaded = true;
+// ================= LOAD DATA =================
+async function loadSheetData(force = false) {
+  const now = Date.now();
+
+  // prevent too frequent reload
+  if (!force && now - lastLoaded < 10000) return;
+
+  try {
+    const response = await fetch(sheetURL);
+    const csv = await response.text();
+
+    const parsed = Papa.parse(csv, {
+      header: true,
+      skipEmptyLines: true
+    });
+
+    knowledgeBase = parsed.data;
+    lastLoaded = now;
+
+    console.log("✅ Sheet data loaded:", knowledgeBase.length);
+  } catch (err) {
+    console.error("❌ Error loading sheet:", err);
+  }
 }
 
 async function loadBannedWords() {
-  const res = await fetch(bannedURL + "?t=" + Date.now());
-  const csvText = await res.text();
-  const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
-  const header = Object.keys(parsed.data[0] || {});
-  const bannedColumn = header.find(h => h.toLowerCase().includes("banned"));
-  bannedWords = parsed.data.map(r => r[bannedColumn]).filter(Boolean).map(w => w.toLowerCase());
+  try {
+    const response = await fetch(bannedURL);
+    const csv = await response.text();
+
+    const parsed = Papa.parse(csv, {
+      header: true,
+      skipEmptyLines: true
+    });
+
+    if (parsed.data.length === 0) return;
+
+    const header = Object.keys(parsed.data[0]);
+    const bannedColumn = header.find(h =>
+      h.toLowerCase().includes("banned")
+    );
+
+    if (!bannedColumn) return;
+
+    bannedWords = parsed.data
+      .map(row => row[bannedColumn])
+      .filter(Boolean)
+      .map(word => word.toLowerCase());
+
+    console.log("🚫 Banned words loaded:", bannedWords.length);
+  } catch (err) {
+    console.error("❌ Error loading banned words:", err);
+  }
 }
 
-async function refreshData() {
-  await loadSheetData();
-  await loadBannedWords();
-}
-refreshData();
-setInterval(refreshData, 30000);
+// ================= AUTO REFRESH =================
+setInterval(() => {
+  loadSheetData();
+  loadBannedWords();
+  console.log("🔄 Auto-refresh triggered");
+}, 30000);
 
+// Initial load
+loadSheetData(true);
+loadBannedWords();
+
+// ================= UI =================
 function addMessage(text, sender) {
   const chat = document.getElementById("chat");
   const div = document.createElement("div");
@@ -39,87 +86,115 @@ function addMessage(text, sender) {
   chat.scrollTop = chat.scrollHeight;
 }
 
-function searchSheet(input) {
-  input = input.toLowerCase();
+// ================= SEARCH =================
+function searchSheet(question) {
+  const input = question.toLowerCase();
+
+  let bestMatch = null;
+  let bestScore = 0;
+
   for (const row of knowledgeBase) {
     if (!row["User Question"]) continue;
+
     const q = row["User Question"].toLowerCase();
-    if (q.includes(input) || input.includes(q)) return row["Bot Answer"];
-  }
-  return null;
-}
+    let score = 0;
 
-function logQuestion(q, found, a) {
-  fetch(API_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ type: "log", question: q, found, answer: a })
-  });
-}
+    if (input.includes(q)) score += 3;
+    if (q.includes(input)) score += 2;
 
-async function sendMessage() {
-  const input = document.getElementById("userInput");
-  const msg = input.value.trim();
-  if (!msg) return;
+    const inputWords = input.split(/\W+/);
+    const qWords = q.split(/\W+/);
 
-  if (bannedWords.some(w => msg.toLowerCase().includes(w))) {
-    addMessage("⚠️ Your message contains banned words.", "bot");
-    input.value = "";
-    return; 
-  }
+    inputWords.forEach(word => {
+      if (qWords.includes(word)) score++;
+    });
 
-  addMessage(msg, "user");
-  input.value = "";
-
-  let answer = searchSheet(msg);
-  if (answer) {
-    addMessage(answer, "bot");
-    logQuestion(msg, "Yes", answer);
-  } else {
-    try {
-      const res = await fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
-      });
-      const data = await res.json();
-      const aiReply = data.reply || "AI unavailable";
-      addMessage(aiReply, "bot");
-      logQuestion(msg, "No", aiReply);
-    } catch (e) {
-      addMessage("⚠️ AI unavailable", "bot");
-      logQuestion(msg, "No", "AI unavailable");
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = row;
     }
   }
+
+  return bestScore > 1 ? bestMatch["Bot Answer"] : null;
 }
 
-window.onload = () => {
-  const inputEl = document.getElementById("userInput");
-  const suggestionBox = document.getElementById("suggestions");
+// ================= BANNED WORD CHECK =================
+function containsBannedWord(text) {
+  const words = text.toLowerCase().split(/\W+/);
+  return bannedWords.some(banned => words.includes(banned));
+}
 
-  inputEl.addEventListener("input", function () {
-    const value = this.value.toLowerCase().trim();
-    suggestionBox.innerHTML = "";
-    if (!isDataLoaded || !value) return;
-
-    const matches = knowledgeBase
-      .filter(item => item["User Question"] && item["User Question"].toLowerCase().includes(value))
-      .slice(0, 5);
-
-    matches.forEach(item => {
-      const div = document.createElement("div");
-      div.className = "suggestion";
-      div.innerText = item["User Question"];
-      div.onclick = () => {
-        inputEl.value = item["User Question"];
-        suggestionBox.innerHTML = "";
-        inputEl.focus();
-      };
-      suggestionBox.appendChild(div);
+// ================= LOGGING =================
+async function logQuestion(question, found, answer) {
+  try {
+    await fetch(LOG_API, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, found, answer })
     });
-  });
-};
+  } catch (error) {
+    console.log("Logging error:", error);
+  }
+}
 
-document.getElementById("sendBtn").onclick = sendMessage;
-document.getElementById("userInput").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
-document.getElementById("darkToggle").onclick = () => { document.body.classList.toggle("dark-mode"); };
+// ================= MAIN CHAT =================
+async function sendMessage() {
+  const input = document.getElementById("userInput");
+  const message = input.value.trim();
+  if (!message) return;
+
+  // Refresh latest data before answering
+  await loadSheetData(true);
+  await loadBannedWords();
+
+  // Check banned words
+  if (containsBannedWord(message)) {
+    addMessage("⚠️ Your message contains banned words and cannot be sent.", "bot");
+    input.value = "";
+    input.focus();
+    return;
+  }
+
+  addMessage(message, "user");
+  input.value = "";
+  input.focus();
+
+  // Typing indicator
+  const chat = document.getElementById("chat");
+  const typingDiv = document.createElement("div");
+  typingDiv.className = "message bot";
+  typingDiv.innerText = "Typing...";
+  chat.appendChild(typingDiv);
+  chat.scrollTop = chat.scrollHeight;
+
+  // Search
+  let sheetAnswer = searchSheet(message);
+  let finalAnswer;
+
+  if (sheetAnswer) {
+    finalAnswer = sheetAnswer;
+    logQuestion(message, "Yes", finalAnswer);
+  } else {
+    finalAnswer = "Sorry, I don't have an answer for that yet.";
+    logQuestion(message, "No", finalAnswer);
+  }
+
+  // Replace typing with real answer
+  setTimeout(() => {
+    typingDiv.innerText = finalAnswer;
+  }, 500);
+}
+
+// ================= EVENTS =================
+document.getElementById("userInput").addEventListener("keypress", function(event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendMessage();
+  }
+});
+
+// Dark mode
+document.getElementById("darkToggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+});
