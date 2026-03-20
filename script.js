@@ -176,7 +176,7 @@ function addTyping() {
   return div;
 }
 
-// ================= SUGGESTIONS =================
+// ================= SMART KEYWORD SUGGESTIONS =================
 const inputBox = document.getElementById("userInput");
 
 const suggestionBox = document.createElement("div");
@@ -184,39 +184,70 @@ suggestionBox.style.background = "#fff";
 suggestionBox.style.border = "1px solid #ccc";
 suggestionBox.style.position = "absolute";
 suggestionBox.style.width = "400px";
+suggestionBox.style.maxHeight = "150px";
+suggestionBox.style.overflowY = "auto";
 suggestionBox.style.display = "none";
+suggestionBox.style.zIndex = "999";
+
 document.body.appendChild(suggestionBox);
 
 inputBox.addEventListener("input", () => {
-  const value = inputBox.value.toLowerCase();
+  const value = inputBox.value.toLowerCase().trim();
   suggestionBox.innerHTML = "";
 
-  if (!value) {
+  if (!value || knowledgeBase.length === 0) {
     suggestionBox.style.display = "none";
     return;
   }
 
-  const matches = knowledgeBase
-    .filter(row =>
-      row["User Question"] &&
-      row["User Question"].toLowerCase().includes(value)
-    )
-    .slice(0, 5);
+  const keywords = value.split(/\s+/);
 
-  if (matches.length === 0) {
+  let scored = knowledgeBase.map(row => {
+    const question = (row["User Question"] || "").toLowerCase();
+
+    let score = 0;
+
+    keywords.forEach(word => {
+      if (question.includes(word)) score++;
+    });
+
+    return {
+      text: row["User Question"],
+      score: score
+    };
+  });
+
+  // Filter only relevant matches
+  scored = scored
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5); // top 5
+
+  if (scored.length === 0) {
     suggestionBox.style.display = "none";
     return;
   }
 
-  matches.forEach(m => {
+  scored.forEach(item => {
     const div = document.createElement("div");
-    div.innerText = m["User Question"];
-    div.style.padding = "5px";
+    div.innerText = item.text;
+
+    div.style.padding = "8px";
     div.style.cursor = "pointer";
+    div.style.borderBottom = "1px solid #eee";
+
+    div.onmouseover = () => {
+      div.style.background = "#ffe6f0";
+    };
+
+    div.onmouseout = () => {
+      div.style.background = "#fff";
+    };
 
     div.onclick = () => {
-      inputBox.value = m["User Question"];
+      inputBox.value = item.text;
       suggestionBox.style.display = "none";
+      inputBox.focus();
     };
 
     suggestionBox.appendChild(div);
@@ -224,8 +255,15 @@ inputBox.addEventListener("input", () => {
 
   const rect = inputBox.getBoundingClientRect();
   suggestionBox.style.left = rect.left + "px";
-  suggestionBox.style.top = rect.bottom + "px";
+  suggestionBox.style.top = rect.bottom + window.scrollY + "px";
   suggestionBox.style.display = "block";
+});
+
+// Hide suggestions when clicking outside
+document.addEventListener("click", (e) => {
+  if (e.target !== inputBox) {
+    suggestionBox.style.display = "none";
+  }
 });
 
 // ================= EVENTS =================
