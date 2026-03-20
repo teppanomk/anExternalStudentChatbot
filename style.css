@@ -94,3 +94,32 @@ background:#444;
 background:#2d6cdf;
 color:white;
 }
+.input-area {
+  display: flex;
+  gap: 5px;
+}
+
+#sendBtn {
+  padding: 10px;
+  background: #ff66b3;
+  border: none;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+#suggestions {
+  background: #fff;
+  border: 1px solid #ffc0cb;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.suggestion {
+  padding: 8px;
+  cursor: pointer;
+}
+
+.suggestion:hover {
+  background: #ffe6f2;
+}
