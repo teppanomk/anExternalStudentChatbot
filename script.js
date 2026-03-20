@@ -85,7 +85,8 @@ function addMessage(text, sender) {
 
 // ================= SEARCH =================
 function searchSheet(question) {
-  const input = question.toLowerCase();
+  const input = question.toLowerCase().trim();
+  const inputWords = input.split(/\W+/).filter(Boolean);
 
   let bestMatch = null;
   let bestScore = 0;
@@ -94,17 +95,16 @@ function searchSheet(question) {
     if (!row["User Question"]) continue;
 
     const q = row["User Question"].toLowerCase();
-    let score = 0;
+    const qWords = q.split(/\W+/).filter(Boolean);
 
-    if (input.includes(q)) score += 3;
-    if (q.includes(input)) score += 2;
-
-    const inputWords = input.split(/\W+/);
-    const qWords = q.split(/\W+/);
+    let matchCount = 0;
 
     inputWords.forEach(word => {
-      if (qWords.includes(word)) score++;
+      if (qWords.includes(word)) matchCount++;
     });
+
+    // 🔥 SCORE = % of matched words
+    const score = matchCount / inputWords.length;
 
     if (score > bestScore) {
       bestScore = score;
@@ -112,7 +112,12 @@ function searchSheet(question) {
     }
   }
 
-  return bestScore > 1 ? bestMatch["Bot Answer"] : null;
+  // ✅ REQUIRE at least 60% match
+  if (bestScore >= 0.6) {
+    return bestMatch["Bot Answer"];
+  }
+
+  return null;
 }
 
 // ================= BANNED =================
@@ -291,7 +296,17 @@ inputBox.addEventListener("keypress", function(event) {
   if (event.key === "Enter") {
     event.preventDefault();
     suggestionBox.style.display = "none";
-    sendMessage();
+    sendMessage(
+
+if (sheetAnswer !== null) {
+  finalAnswer = sheetAnswer;
+  logQuestion(message, "Yes", finalAnswer);
+} else {
+  finalAnswer = "Sorry, I don't have an answer for that yet.";
+  logQuestion(message, "No", finalAnswer);
+}
+      
+    );
   }
 });
 
