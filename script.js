@@ -180,16 +180,34 @@ suggestionBox.style.border = "1px solid #ccc";
 suggestionBox.style.padding = "0";
 document.body.appendChild(suggestionBox);
 
-// Update suggestion colors based on dark mode
+// ================= KEYWORD SUGGESTIONS =================
 function updateSuggestionColors() {
   if (document.body.classList.contains("dark-mode")) {
-    suggestionBox.style.background = "#ffe6f0"; // light background
-    suggestionBox.style.color = "#000";
+    suggestionBox.style.background = "#ffe6f0"; // light background for readability
+    suggestionBox.style.color = "#000000";      // 🔥 force text black
   } else {
-    suggestionBox.style.background = "#fff";
-    suggestionBox.style.color = "#000";
+    suggestionBox.style.background = "#ffffff"; // white background
+    suggestionBox.style.color = "#000000";      // black text
   }
+
+  // Update all current child divs (the dropdown items)
+  suggestionBox.querySelectorAll("div").forEach(div => {
+    div.style.color = "#000000"; // always black
+    if (document.body.classList.contains("dark-mode")) {
+      div.onmouseover = () => { div.style.background = "#ffb3d1"; }; // slightly darker hover
+      div.onmouseout = () => { div.style.background = "#ffe6f0"; };
+    } else {
+      div.onmouseover = () => { div.style.background = "#ffe6f0"; };
+      div.onmouseout = () => { div.style.background = "#fff"; };
+    }
+  });
 }
+
+// Call this function whenever dark mode toggles
+document.getElementById("darkToggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+  updateSuggestionColors();
+});
 
 // Generate suggestions
 inputBox.addEventListener("input", () => {
