@@ -1,5 +1,5 @@
 // ================= CONFIG =================
-const API_URL = "https://script.google.com/macros/s/AKfycbzdKklOBjueFXSv3x8SpquZAKmGyGOGlBsP9xyfUoqskxU_acWmUoQgXBJwa-OIgWVeOQ/exec"; // Web App URL from Apps Script
+const API_URL = "https://script.google.com/macros/s/AKfycbxjL_bbaTYma7fNZtJYQLAG1GWA7WtxhveLss6Zkrira2JARAcKhP-82p2963QtYZgLJQ/exec"; // Web App URL from Apps Script
 const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
 
 let knowledgeBase = [];
