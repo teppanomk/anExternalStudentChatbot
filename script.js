@@ -90,9 +90,10 @@ async function sendMessage() {
   let answer = searchSheet(msg);
   if (answer) {
     addMessage(answer, "bot");
-    logQuestion(msg, "Yes", answer); // Found
+    logQuestion(msg, "Yes", answer); // Q&A found
   } else {
     // AI fallback
+    let aiReply = "AI unavailable";
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -100,11 +101,12 @@ async function sendMessage() {
         body: JSON.stringify({ message: msg })
       });
       const data = await res.json();
-      addMessage(data.reply || "⚠️ No answer from AI.", "bot");
-      logQuestion(msg, "No", data.reply || "No answer"); // Not found
+      aiReply = data.reply || "AI unavailable";
+      addMessage(aiReply, "bot");
     } catch (e) {
-      addMessage("⚠️ AI unavailable.", "bot");
+      addMessage("⚠️ AI unavailable", "bot");
     }
+    logQuestion(msg, "No", aiReply); // AI fallback, always logged
   }
 }
 
