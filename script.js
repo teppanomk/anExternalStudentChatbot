@@ -77,11 +77,11 @@ async function sendMessage() {
   const msg = input.value.trim();
   if (!msg) return;
 
-  // Banned words
+  // Banned words check
   if (bannedWords.some(w => msg.toLowerCase().includes(w))) {
     addMessage("⚠️ Your message contains banned words.", "bot");
     input.value = "";
-    return;
+    return; // Do not log banned messages
   }
 
   addMessage(msg, "user");
@@ -90,8 +90,9 @@ async function sendMessage() {
   let answer = searchSheet(msg);
   if (answer) {
     addMessage(answer, "bot");
-    logQuestion(msg, "Yes", answer);
+    logQuestion(msg, "Yes", answer); // Found
   } else {
+    // AI fallback
     try {
       const res = await fetch(API_URL, {
         method: "POST",
@@ -100,7 +101,7 @@ async function sendMessage() {
       });
       const data = await res.json();
       addMessage(data.reply || "⚠️ No answer from AI.", "bot");
-      logQuestion(msg, "AI", data.reply || "No answer");
+      logQuestion(msg, "No", data.reply || "No answer"); // Not found
     } catch (e) {
       addMessage("⚠️ AI unavailable.", "bot");
     }
