@@ -48,12 +48,14 @@ async function loadBannedWords() {
     // ✅ ALWAYS use first column (ignores header issues completely)
     const firstColumn = Object.keys(parsed.data[0])[0];
 
-    bannedWords = parsed.data
-      .map(row => row[firstColumn])
-      .filter(Boolean)
-      .map(word => word.toString().trim().toLowerCase());
+   bannedWords = parsed.data
+    .map(row => row[firstColumn])
+    .filter(Boolean)
+    .map(word => normalizeThai(word)); // 🔥 use same normalization
 
     console.log("🚫 Banned words loaded:", bannedWords);
+    console.log("USER:", normalizeThai(text));
+    console.log("BANNED:", bannedWords);
 
   } catch (err) {
     console.error("❌ Error loading banned words:", err);
