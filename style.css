@@ -9,20 +9,23 @@ body {
 }
 
 .chat-container {
-  width: 420px;
+  width: 450px;
   background: #fff0f6;
   padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0 0 10px rgba(255, 0, 128, 0.2);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(255, 0, 128, 0.2);
+  transition: background 0.3s, box-shadow 0.3s, color 0.3s;
 }
 
 #chat {
-  height: 420px;
+  height: 400px;
   overflow-y: auto;
   border: 1px solid #ffc0cb;
   padding: 10px;
   margin-bottom: 10px;
   background: #fff0f6;
+  border-radius: 8px;
+  transition: background 0.3s, border 0.3s, color 0.3s;
 }
 
 .message {
@@ -31,6 +34,7 @@ body {
   border-radius: 8px;
   max-width: 80%;
   word-wrap: break-word;
+  transition: background 0.3s, color 0.3s;
 }
 
 .user {
@@ -47,99 +51,105 @@ body {
 }
 
 #userInput {
-  width: 100%;
+  flex: 1;
   padding: 10px;
   border: 1px solid #ff99cc;
-  border-radius: 5px;
+  border-radius: 8px;
   background: #fff0f6;
   color: #800040;
+  transition: background 0.3s, color 0.3s, border 0.3s;
 }
 
-#sendBtn {
-  padding: 10px;
-  background: #ff66b3;
+.input-container {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.send-button {
+  background: #ff3399;
   border: none;
   color: white;
-  border-radius: 5px;
+  padding: 10px 16px;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: bold;
+  transition: background 0.3s, transform 0.2s;
 }
 
-#suggestions {
-  background: #fff;
-  border: 1px solid #ffc0cb;
-  max-height: 120px;
-  overflow-y: auto;
+.send-button:hover {
+  background: #ff66b3;
+  transform: translateY(-2px);
+}
+
+#darkToggle {
+  background: #ff99cc;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: white;
+  margin-bottom: 10px;
+  transition: background 0.3s, color 0.3s;
+}
+
+#darkToggle:hover {
+  background: #ff66b3;
+}
+
+.suggestions-box {
+  border: 1px solid #ff99cc;
+  border-radius: 6px;
+  padding: 5px;
+  margin-bottom: 8px;
+  background: #fff0f6;
 }
 
 .suggestion {
-  padding: 8px;
+  padding: 5px;
   cursor: pointer;
+  color: black; /* suggestion text color */
 }
 
 .suggestion:hover {
-  background: #ffe6f2;
+  background: #ffccde;
 }
 
+/* DARK MODE */
 body.dark-mode {
-  background: #000;
-  color: #fff;
+  background: #000000;
+  color: #ffffff;
 }
 
 body.dark-mode .chat-container {
   background: #1a001a;
-  color: #fff;
-  box-shadow: 0 0 10px rgba(255, 182, 193, 0.5);
+  color: #ffffff;
+  box-shadow: 0 4px 15px rgba(255, 182, 193, 0.5);
 }
 
 body.dark-mode #chat {
   background: #1a001a;
   border: 1px solid #ff66b3;
-  color: #fff;
+  color: #ffffff;
 }
 
 body.dark-mode .user {
   background: #ff3399;
-  color: #fff;
+  color: #ffffff;
 }
 
 body.dark-mode .bot {
   background: #ff66b3;
-  color: #fff;
+  color: #ffffff;
 }
 
 body.dark-mode #userInput {
   background: #1a001a;
-  color: #fff;
+  color: #ffffff;
   border: 1px solid #ff66b3;
 }
 
-body.dark-mode #sendBtn {
+body.dark-mode #darkToggle {
   background: #ff66b3;
-  color: #fff;
-}
-
-body.dark-mode h2 {
-  color: #fff;
-}
-
-.input-area {
-  display: flex;
-  gap: 5px;
-}
-.suggestions-box {
-  border: 1px solid #ff99cc;
-  max-height: 120px;
-  overflow-y: auto;
-  margin-bottom: 5px;
-  background: #fff0f6;
-  border-radius: 5px;
-}
-
-.suggestion {
-  padding: 5px 10px;
-  cursor: pointer;
-}
-
-.suggestion:hover {
-  background: #ffccde;
+  color: #000000;
 }
