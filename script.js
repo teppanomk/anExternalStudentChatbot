@@ -40,20 +40,23 @@ async function loadBannedWords() {
       skipEmptyLines: true
     });
 
-    const header = Object.keys(parsed.data[0] || {});
-    const bannedColumn = header.find(h =>
-      h.toLowerCase().includes("banned")
-    );
+    if (!parsed.data.length) {
+      console.warn("⚠️ No banned words found");
+      return;
+    }
 
-    if (!bannedColumn) return;
+    // ✅ ALWAYS use first column (ignores header issues completely)
+    const firstColumn = Object.keys(parsed.data[0])[0];
 
     bannedWords = parsed.data
-      .map(row => row[bannedColumn])
+      .map(row => row[firstColumn])
       .filter(Boolean)
-      .map(w => w.toLowerCase());
+      .map(word => word.toString().trim().toLowerCase());
+
+    console.log("🚫 Banned words loaded:", bannedWords);
 
   } catch (err) {
-    console.error("❌ Banned error:", err);
+    console.error("❌ Error loading banned words:", err);
   }
 }
 
@@ -116,17 +119,7 @@ function containsBannedWord(text) {
 
   return bannedWords.some(word => {
     if (!word) return false;
-
-    word = word.toLowerCase().trim();
-
-    // For short words (like Thai), use includes
-    if (word.length <= 4) {
-      return lowerText.includes(word);
-    }
-
-    // For longer words, match whole words (English safe)
-    const regex = new RegExp(`\\b${word}\\b`, "i");
-    return regex.test(lowerText);
+    return lowerText.includes(word);
   });
 }
 
@@ -140,7 +133,7 @@ async function logQuestion(question, found, answer) {
       body: JSON.stringify({ question, found, answer })
     });
   } catch (err) {
-    console.log("Log error:", err);
+    console.log("BANNED:", bannedWords);
   }
 }
 
