@@ -1,4 +1,5 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbyyzHdgQVib2M2tV_kYjuAwUiejdganuuyfB59UGDAIWay-odZnZbR-EDYgOCco8AZXWA/exec"; 
+// ================= CONFIG =================
+const API_URL = "https://script.google.com/macros/s/AKfycbzdKklOBjueFXSv3x8SpquZAKmGyGOGlBsP9xyfUoqskxU_acWmUoQgXBJwa-OIgWVeOQ/exec"; // Web App URL from Apps Script
 const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
 
 let knowledgeBase = [];
@@ -8,15 +9,23 @@ let isProcessing = false;
 
 // ========== LOAD SHEETS ==========
 async function loadSheetData() {
-  const res = await fetch(API_URL + "?t=" + Date.now());
-  knowledgeBase = await res.json();
-  isDataLoaded = true;
+  try {
+    const res = await fetch(API_URL + "?t=" + Date.now());
+    knowledgeBase = await res.json();
+    isDataLoaded = true;
+  } catch (e) {
+    console.error("Failed to load Q&A:", e);
+  }
 }
 
 async function loadBannedWords() {
-  const res = await fetch(bannedURL + "&t=" + Date.now());
-  const text = await res.text();
-  bannedWords = text.split("\n").slice(1).map(x => x.trim().toLowerCase()).filter(Boolean);
+  try {
+    const res = await fetch(bannedURL + "&t=" + Date.now());
+    const text = await res.text();
+    bannedWords = text.split("\n").slice(1).map(x => x.trim().toLowerCase()).filter(Boolean);
+  } catch (e) {
+    console.error("Failed to load banned words:", e);
+  }
 }
 
 async function refreshData() {
@@ -42,6 +51,7 @@ function searchSheet(input) {
   let best = null;
   let bestScore = 0;
   for (const row of knowledgeBase) {
+    if (!row.question) continue;
     const words1 = input.split(" ");
     const words2 = row.question.toLowerCase().split(" ");
     let match = 0;
@@ -71,8 +81,13 @@ async function getAIResponse(message) {
 function logQuestion(q, found, a) {
   fetch(API_URL, {
     method: "POST",
-    headers: {"Content-Type":"application/json"},
-    body: JSON.stringify({type:"log", question:q, found:found, answer:a})
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      type: "log",
+      question: q,
+      found: found,
+      answer: a
+    })
   });
 }
 
