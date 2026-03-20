@@ -84,15 +84,22 @@ function addTyping() {
 
 // ================= SEARCH =================
 function searchSheet(question) {
-  const input = normalizeThai(question);
-  const inputWords = input.split(/\W+/).filter(Boolean);
+  const normalizedInput = normalizeThai(question);
 
+  // 1️⃣ Exact match first
+  for (const row of knowledgeBase) {
+    if (!row["User Question"]) continue;
+    const q = normalizeThai(row["User Question"]);
+    if (q === normalizedInput) return row["Bot Answer"];
+  }
+
+  // 2️⃣ Keyword match
+  const inputWords = normalizedInput.split(/\W+/).filter(Boolean);
   let bestMatch = null;
   let bestScore = 0;
 
   for (const row of knowledgeBase) {
     if (!row["User Question"]) continue;
-
     const q = normalizeThai(row["User Question"]);
     const qWords = q.split(/\W+/).filter(Boolean);
 
@@ -100,13 +107,9 @@ function searchSheet(question) {
     inputWords.forEach(word => { if (qWords.includes(word)) matchCount++; });
     const score = matchCount / inputWords.length;
 
-    if (score > bestScore) {
-      bestScore = score;
-      bestMatch = row;
-    }
+    if (score > bestScore) { bestScore = score; bestMatch = row; }
   }
 
-  // Require at least 60% keyword match
   if (bestScore >= 0.6) return bestMatch["Bot Answer"];
   return null;
 }
