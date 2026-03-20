@@ -99,3 +99,22 @@ body.dark-mode #darkToggle {
   background: #ff66b3;
   color: #000000;
 }
+.input-container {
+  display: flex;
+  gap: 8px;
+}
+
+#sendBtn {
+  background: #ff66b3;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 5px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+#sendBtn:hover {
+  background: #ff3399;
+}
