@@ -296,17 +296,7 @@ inputBox.addEventListener("keypress", function(event) {
   if (event.key === "Enter") {
     event.preventDefault();
     suggestionBox.style.display = "none";
-    sendMessage(
-
-if (sheetAnswer !== null) {
-  finalAnswer = sheetAnswer;
-  logQuestion(message, "Yes", finalAnswer);
-} else {
-  finalAnswer = "Sorry, I don't have an answer for that yet.";
-  logQuestion(message, "No", finalAnswer);
-}
-      
-    );
+    sendMessage();
   }
 });
 
