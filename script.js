@@ -1,5 +1,5 @@
 // ================= CONFIG =================
-const API_URL = "https://script.google.com/macros/s/AKfycbwF-er3hjnbMETDdNqudt8jkaaCQ5MSk4T01DqKGNPEXejn62go9mGMPMoYrFPHk0hpqA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxzzudCpHkiXWp_bgsyvCMstClGyPQV_gX4PJQPl9YgL0j0xQX_dLT0G_7odGesf6jbCQ/exec";
 const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv"; // ChatData
 const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
 
