@@ -57,7 +57,6 @@ async function initData() {
   isLoaded = true;
   console.log("✅ All data loaded");
 }
-
 initData();
 setInterval(initData, 30000); // Auto-refresh every 30 sec
 
@@ -166,6 +165,9 @@ async function sendMessage() {
 }
 
 // ================= SUGGESTION DROPDOWN =================
+const inputBox = document.getElementById("userInput");
+const sendBtn = document.getElementById("sendBtn");
+
 const suggestionBox = document.createElement("div");
 suggestionBox.style.background = "#fff";
 suggestionBox.style.border = "1px solid #ccc";
@@ -175,21 +177,11 @@ suggestionBox.style.maxHeight = "150px";
 suggestionBox.style.overflowY = "auto";
 suggestionBox.style.display = "none";
 suggestionBox.style.zIndex = "999";
-suggestionBox.style.color = "#000000"; // black text
 document.body.appendChild(suggestionBox);
 
-const inputBox = document.getElementById("userInput");
-const sendBtn = document.getElementById("sendBtn");
-
-// Update suggestion colors dynamically
 function updateSuggestionColors() {
-  if (document.body.classList.contains("dark-mode")) {
-    suggestionBox.style.background = "#ffe6f0";
-  } else {
-    suggestionBox.style.background = "#ffffff";
-  }
   suggestionBox.querySelectorAll("div").forEach(div => {
-    div.style.color = "#000000";
+    div.style.color = "#000000"; // text always black
     div.onmouseover = () => {
       div.style.background = document.body.classList.contains("dark-mode") ? "#ffb3d1" : "#ffe6f0";
     };
@@ -197,9 +189,11 @@ function updateSuggestionColors() {
       div.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
     };
   });
+
+  suggestionBox.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
 }
 
-// Generate suggestions on input
+// Suggestion logic
 inputBox.addEventListener("input", () => {
   const value = inputBox.value.toLowerCase().trim();
   suggestionBox.innerHTML = "";
@@ -261,7 +255,6 @@ document.addEventListener("click", (e) => {
 });
 
 // ================= EVENTS =================
-// Enter key
 inputBox.addEventListener("keydown", function(event) {
   if (event.key === "Enter") {
     event.preventDefault();
@@ -270,14 +263,12 @@ inputBox.addEventListener("keydown", function(event) {
   }
 });
 
-// Send button
 sendBtn.addEventListener("click", () => {
   suggestionBox.style.display = "none";
   sendMessage();
 });
 
-// Dark mode toggle
 document.getElementById("darkToggle").addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
-  updateSuggestionColors();
+  updateSuggestionColors(); // update dropdown colors immediately
 });
