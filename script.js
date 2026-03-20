@@ -8,15 +8,10 @@ const LOG_API = "https://script.google.com/macros/s/AKfycbze3yVdySjDVy2MOi9SuZgz
 // ================= STATE =================
 let knowledgeBase = [];
 let bannedWords = [];
-let lastLoaded = 0;
+let isLoaded = false;
 
 // ================= LOAD DATA =================
-async function loadSheetData(force = false) {
-  const now = Date.now();
-
-  // prevent too frequent reload
-  if (!force && now - lastLoaded < 10000) return;
-
+async function loadSheetData() {
   try {
     const response = await fetch(sheetURL);
     const csv = await response.text();
@@ -27,11 +22,11 @@ async function loadSheetData(force = false) {
     });
 
     knowledgeBase = parsed.data;
-    lastLoaded = now;
+    isLoaded = true;
 
-    console.log("✅ Sheet data loaded:", knowledgeBase.length);
+    console.log("✅ Sheet loaded:", knowledgeBase.length);
   } catch (err) {
-    console.error("❌ Error loading sheet:", err);
+    console.error("❌ Sheet error:", err);
   }
 }
 
@@ -45,9 +40,7 @@ async function loadBannedWords() {
       skipEmptyLines: true
     });
 
-    if (parsed.data.length === 0) return;
-
-    const header = Object.keys(parsed.data[0]);
+    const header = Object.keys(parsed.data[0] || {});
     const bannedColumn = header.find(h =>
       h.toLowerCase().includes("banned")
     );
@@ -57,24 +50,23 @@ async function loadBannedWords() {
     bannedWords = parsed.data
       .map(row => row[bannedColumn])
       .filter(Boolean)
-      .map(word => word.toLowerCase());
+      .map(w => w.toLowerCase());
 
-    console.log("🚫 Banned words loaded:", bannedWords.length);
   } catch (err) {
-    console.error("❌ Error loading banned words:", err);
+    console.error("❌ Banned error:", err);
   }
 }
 
-// ================= AUTO REFRESH =================
+// Initial load
+loadSheetData();
+loadBannedWords();
+
+// Auto refresh
 setInterval(() => {
   loadSheetData();
   loadBannedWords();
-  console.log("🔄 Auto-refresh triggered");
+  console.log("🔄 Refreshed");
 }, 30000);
-
-// Initial load
-loadSheetData(true);
-loadBannedWords();
 
 // ================= UI =================
 function addMessage(text, sender) {
@@ -118,13 +110,13 @@ function searchSheet(question) {
   return bestScore > 1 ? bestMatch["Bot Answer"] : null;
 }
 
-// ================= BANNED WORD CHECK =================
+// ================= BANNED =================
 function containsBannedWord(text) {
   const words = text.toLowerCase().split(/\W+/);
-  return bannedWords.some(banned => words.includes(banned));
+  return bannedWords.some(b => words.includes(b));
 }
 
-// ================= LOGGING =================
+// ================= LOG =================
 async function logQuestion(question, found, answer) {
   try {
     await fetch(LOG_API, {
@@ -133,68 +125,118 @@ async function logQuestion(question, found, answer) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, found, answer })
     });
-  } catch (error) {
-    console.log("Logging error:", error);
+  } catch (err) {
+    console.log("Log error:", err);
   }
 }
 
-// ================= MAIN CHAT =================
+// ================= CHAT =================
 async function sendMessage() {
   const input = document.getElementById("userInput");
   const message = input.value.trim();
   if (!message) return;
 
-  // Refresh latest data before answering
-  await loadSheetData(true);
-  await loadBannedWords();
+  if (!isLoaded) {
+    addMessage("⏳ Loading data, please wait...", "bot");
+    return;
+  }
 
-  // Check banned words
   if (containsBannedWord(message)) {
-    addMessage("⚠️ Your message contains banned words and cannot be sent.", "bot");
+    addMessage("⚠️ Message contains banned words.", "bot");
     input.value = "";
-    input.focus();
     return;
   }
 
   addMessage(message, "user");
   input.value = "";
-  input.focus();
 
-  // Typing indicator
-  const chat = document.getElementById("chat");
-  const typingDiv = document.createElement("div");
-  typingDiv.className = "message bot";
-  typingDiv.innerText = "Typing...";
-  chat.appendChild(typingDiv);
-  chat.scrollTop = chat.scrollHeight;
+  // typing
+  const typing = addTyping();
 
-  // Search
-  let sheetAnswer = searchSheet(message);
-  let finalAnswer;
+  let answer = searchSheet(message);
 
-  if (sheetAnswer) {
-    finalAnswer = sheetAnswer;
-    logQuestion(message, "Yes", finalAnswer);
+  if (!answer) {
+    answer = "Sorry, I don't have an answer for that yet.";
+    logQuestion(message, "No", answer);
   } else {
-    finalAnswer = "Sorry, I don't have an answer for that yet.";
-    logQuestion(message, "No", finalAnswer);
+    logQuestion(message, "Yes", answer);
   }
 
-  // Replace typing with real answer
   setTimeout(() => {
-    typingDiv.innerText = finalAnswer;
-  }, 500);
+    typing.innerText = answer;
+  }, 400);
 }
 
+function addTyping() {
+  const chat = document.getElementById("chat");
+  const div = document.createElement("div");
+  div.className = "message bot";
+  div.innerText = "Typing...";
+  chat.appendChild(div);
+  return div;
+}
+
+// ================= SUGGESTIONS =================
+const inputBox = document.getElementById("userInput");
+
+const suggestionBox = document.createElement("div");
+suggestionBox.style.background = "#fff";
+suggestionBox.style.border = "1px solid #ccc";
+suggestionBox.style.position = "absolute";
+suggestionBox.style.width = "400px";
+suggestionBox.style.display = "none";
+document.body.appendChild(suggestionBox);
+
+inputBox.addEventListener("input", () => {
+  const value = inputBox.value.toLowerCase();
+  suggestionBox.innerHTML = "";
+
+  if (!value) {
+    suggestionBox.style.display = "none";
+    return;
+  }
+
+  const matches = knowledgeBase
+    .filter(row =>
+      row["User Question"] &&
+      row["User Question"].toLowerCase().includes(value)
+    )
+    .slice(0, 5);
+
+  if (matches.length === 0) {
+    suggestionBox.style.display = "none";
+    return;
+  }
+
+  matches.forEach(m => {
+    const div = document.createElement("div");
+    div.innerText = m["User Question"];
+    div.style.padding = "5px";
+    div.style.cursor = "pointer";
+
+    div.onclick = () => {
+      inputBox.value = m["User Question"];
+      suggestionBox.style.display = "none";
+    };
+
+    suggestionBox.appendChild(div);
+  });
+
+  const rect = inputBox.getBoundingClientRect();
+  suggestionBox.style.left = rect.left + "px";
+  suggestionBox.style.top = rect.bottom + "px";
+  suggestionBox.style.display = "block";
+});
+
 // ================= EVENTS =================
-document.getElementById("userInput").addEventListener("keypress", function(event) {
+inputBox.addEventListener("keypress", function(event) {
   if (event.key === "Enter") {
     event.preventDefault();
+    suggestionBox.style.display = "none";
     sendMessage();
   }
 });
 
-// Dark mode
 document.getElementById("darkToggle").addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
 });
