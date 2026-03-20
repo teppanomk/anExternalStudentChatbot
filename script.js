@@ -1,31 +1,32 @@
 // ================= CONFIG =================
-const API_URL = "https://script.google.com/macros/s/AKfycbxjL_bbaTYma7fNZtJYQLAG1GWA7WtxhveLss6Zkrira2JARAcKhP-82p2963QtYZgLJQ/exec"; // Web App URL from Apps Script
+const API_URL = "https://script.google.com/macros/s/AKfycbwF-er3hjnbMETDdNqudt8jkaaCQ5MSk4T01DqKGNPEXejn62go9mGMPMoYrFPHk0hpqA/exec";
+const sheetURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSfUYEYX8MIGIYW5hTWf2hz_j0VT7TBiZlAWkB183PuT25msmPFtizLvmD9ktXgV4aMj2e8E6IACs6U/pub?gid=0&single=true&output=csv"; // ChatData
 const bannedURL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vREhew_r4KSC5plsfCVyKtmCp98MIINzoR-ZGdFYjNXbKCaiEf8GkYEwEvMvYAphrZB5ipDeSvqyVhr/pub?gid=0&single=true&output=csv";
 
 let knowledgeBase = [];
 let bannedWords = [];
 let isDataLoaded = false;
-let isProcessing = false;
 
 // ========== LOAD SHEETS ==========
 async function loadSheetData() {
   try {
-    const res = await fetch(API_URL + "?t=" + Date.now());
-    knowledgeBase = await res.json();
+    const res = await fetch(sheetURL + "?t=" + Date.now());
+    const csvText = await res.text();
+    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    knowledgeBase = parsed.data;
     isDataLoaded = true;
-  } catch (e) {
-    console.error("Failed to load Q&A:", e);
-  }
+  } catch (e) { console.error("Failed to load Q&A:", e); }
 }
 
 async function loadBannedWords() {
   try {
-    const res = await fetch(bannedURL + "&t=" + Date.now());
-    const text = await res.text();
-    bannedWords = text.split("\n").slice(1).map(x => x.trim().toLowerCase()).filter(Boolean);
-  } catch (e) {
-    console.error("Failed to load banned words:", e);
-  }
+    const res = await fetch(bannedURL + "?t=" + Date.now());
+    const csvText = await res.text();
+    const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+    const header = Object.keys(parsed.data[0] || {});
+    const bannedColumn = header.find(h => h.toLowerCase().includes("banned"));
+    bannedWords = parsed.data.map(r => r[bannedColumn]).filter(Boolean).map(w => w.toLowerCase());
+  } catch (e) { console.error("Failed to load banned words:", e); }
 }
 
 async function refreshData() {
@@ -48,33 +49,12 @@ function addMessage(text, sender) {
 // ========== SEARCH ==========
 function searchSheet(input) {
   input = input.toLowerCase();
-  let best = null;
-  let bestScore = 0;
   for (const row of knowledgeBase) {
-    if (!row.question) continue;
-    const words1 = input.split(" ");
-    const words2 = row.question.toLowerCase().split(" ");
-    let match = 0;
-    words1.forEach(w => { if (words2.includes(w)) match++; });
-    const score = match / words2.length;
-    if (score > bestScore) { bestScore = score; best = row.answer; }
+    if (!row["User Question"]) continue;
+    const q = row["User Question"].toLowerCase();
+    if (q.includes(input) || input.includes(q)) return row["Bot Answer"];
   }
-  return bestScore > 0.3 ? best : null;
-}
-
-// ========== AI ==========
-async function getAIResponse(message) {
-  try {
-    const res = await fetch(API_URL, {
-      method: "POST",
-      headers: {"Content-Type":"application/json"},
-      body: JSON.stringify({message})
-    });
-    const data = await res.json();
-    return data.reply;
-  } catch {
-    return "⚠️ AI unavailable.";
-  }
+  return null;
 }
 
 // ========== LOG ==========
@@ -93,39 +73,39 @@ function logQuestion(q, found, a) {
 
 // ========== SEND MESSAGE ==========
 async function sendMessage() {
-  if (isProcessing) return;
-  isProcessing = true;
-
   const input = document.getElementById("userInput");
   const msg = input.value.trim();
-  if (!msg) { isProcessing=false; return; }
+  if (!msg) return;
+
+  // Banned words
+  if (bannedWords.some(w => msg.toLowerCase().includes(w))) {
+    addMessage("⚠️ Your message contains banned words.", "bot");
+    input.value = "";
+    return;
+  }
 
   addMessage(msg, "user");
   input.value = "";
 
-  if (!isDataLoaded) { addMessage("Loading...", "bot"); isProcessing=false; return; }
-
-  if (bannedWords.some(w => msg.toLowerCase().includes(w))) {
-    addMessage("⚠️ Banned content.", "bot"); 
-    isProcessing=false; 
-    return;
-  }
-
-  const answer = searchSheet(msg);
+  let answer = searchSheet(msg);
   if (answer) {
-    addMessage(answer, "bot"); 
+    addMessage(answer, "bot");
     logQuestion(msg, "Yes", answer);
   } else {
-    const ai = await getAIResponse(msg);
-    addMessage(ai, "bot"); 
-    logQuestion(msg, "AI", ai);
+    try {
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: msg })
+      });
+      const data = await res.json();
+      addMessage(data.reply || "⚠️ No answer from AI.", "bot");
+      logQuestion(msg, "AI", data.reply || "No answer");
+    } catch (e) {
+      addMessage("⚠️ AI unavailable.", "bot");
+    }
   }
-  isProcessing=false;
 }
-
-// ========== EVENT LISTENERS ==========
-document.getElementById("sendBtn").onclick = sendMessage;
-document.getElementById("userInput").addEventListener("keypress", e => { if(e.key==="Enter") sendMessage(); });
 
 // ========== SUGGESTIONS ==========
 window.onload = () => {
@@ -136,27 +116,29 @@ window.onload = () => {
     const value = this.value.toLowerCase().trim();
     suggestionBox.innerHTML = "";
 
-    if (!isDataLoaded || knowledgeBase.length === 0 || !value) return;
+    if (!isDataLoaded || !value) return;
 
     const matches = knowledgeBase
-      .filter(item => item.question && item.question.toLowerCase().includes(value))
+      .filter(item => item["User Question"] && item["User Question"].toLowerCase().includes(value))
       .slice(0, 5);
 
     matches.forEach(item => {
       const div = document.createElement("div");
       div.className = "suggestion";
-      div.innerText = item.question;
-
+      div.innerText = item["User Question"];
       div.onclick = () => {
-        inputEl.value = item.question;
+        inputEl.value = item["User Question"];
         suggestionBox.innerHTML = "";
         inputEl.focus();
       };
-
       suggestionBox.appendChild(div);
     });
   });
 };
+
+// ========== EVENT LISTENERS ==========
+document.getElementById("sendBtn").onclick = sendMessage;
+document.getElementById("userInput").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
 
 // ========== DARK MODE ==========
 document.getElementById("darkToggle").onclick = () => {
