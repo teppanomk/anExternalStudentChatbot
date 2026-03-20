@@ -35,7 +35,6 @@ async function loadBannedWords() {
     const response = await fetch(bannedURL);
     const csv = await response.text();
     const parsed = Papa.parse(csv, { header: true, skipEmptyLines: true });
-
     if (!parsed.data.length) return;
 
     const firstColumn = Object.keys(parsed.data[0])[0];
@@ -169,19 +168,18 @@ const inputBox = document.getElementById("userInput");
 const sendBtn = document.getElementById("sendBtn");
 
 const suggestionBox = document.createElement("div");
-suggestionBox.style.background = "#fff";
-suggestionBox.style.border = "1px solid #ccc";
 suggestionBox.style.position = "absolute";
 suggestionBox.style.width = "400px";
 suggestionBox.style.maxHeight = "150px";
 suggestionBox.style.overflowY = "auto";
 suggestionBox.style.display = "none";
 suggestionBox.style.zIndex = "999";
+suggestionBox.style.border = "1px solid #ccc";
 document.body.appendChild(suggestionBox);
 
 function updateSuggestionColors() {
   suggestionBox.querySelectorAll("div").forEach(div => {
-    div.style.color = "#000000"; // text always black
+    div.style.color = "#000000"; // black text always
     div.onmouseover = () => {
       div.style.background = document.body.classList.contains("dark-mode") ? "#ffb3d1" : "#ffe6f0";
     };
@@ -189,11 +187,9 @@ function updateSuggestionColors() {
       div.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
     };
   });
-
   suggestionBox.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
 }
 
-// Suggestion logic
 inputBox.addEventListener("input", () => {
   const value = inputBox.value.toLowerCase().trim();
   suggestionBox.innerHTML = "";
@@ -231,7 +227,6 @@ inputBox.addEventListener("input", () => {
     div.onmouseout = () => {
       div.style.background = document.body.classList.contains("dark-mode") ? "#ffe6f0" : "#fff";
     };
-
     div.onclick = () => {
       inputBox.value = item.text;
       suggestionBox.style.display = "none";
@@ -249,7 +244,6 @@ inputBox.addEventListener("input", () => {
   updateSuggestionColors();
 });
 
-// Hide suggestions on outside click
 document.addEventListener("click", (e) => {
   if (e.target !== inputBox && e.target !== sendBtn) suggestionBox.style.display = "none";
 });
@@ -268,7 +262,9 @@ sendBtn.addEventListener("click", () => {
   sendMessage();
 });
 
-document.getElementById("darkToggle").addEventListener("click", () => {
+// DARK MODE TOGGLE
+const darkToggleBtn = document.getElementById("darkToggle");
+darkToggleBtn.addEventListener("click", () => {
   document.body.classList.toggle("dark-mode");
-  updateSuggestionColors(); // update dropdown colors immediately
+  updateSuggestionColors();
 });
